@@ -28941,7 +28941,7 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
   return { isActive: () => active };
 }
 
-// parts.js?v=top-down-1
+// parts.js?v=fitted-2
 var parts = [
   { name: "\uC5BC\uAD74\uACFC \uD45C\uC815", text: "\uACE0\uAC1C\uB97C \uC870\uAE08 \uC219\uC774\uACE0 \uB208\uC744 \uAC00\uB298\uAC8C \uB72C \uC5BC\uAD74\uC785\uB2C8\uB2E4. \uB208\uB9E4\uC640 \uC785\uAC00\uC5D0 \uB4DC\uB7EC\uB098\uB294 \uC794\uC794\uD55C \uD45C\uC815\uC744 \uC0B4\uD3B4\uBCF4\uC138\uC694.", p: [0, 1.84], r: [0.16, 0.19] },
   { name: "\uBA38\uB9AC\uC758 \uAD00", text: "\uBA38\uB9AC \uC704\uC5D0 \uC7A5\uC2DD\uC774 \uB192\uC774 \uC19F\uC740 \uBCF4\uAD00\uC744 \uC4F0\uACE0 \uC788\uC2B5\uB2C8\uB2E4. \uAD00\uC758 \uD14C\uB450\uB9AC\uC640 \uC704\uB85C \uBED7\uC740 \uC7A5\uC2DD\uC758 \uC724\uACFD\uC744 \uC0B4\uD3B4\uBCF4\uC138\uC694.", p: [0, 2.15], r: [0.23, 0.16] },
@@ -28980,6 +28980,28 @@ var back02 = back01.map((p, i) => ({ ...p, p: [[0, 2.16], [0, 1.94], [0, 1.65], 
 ][i] }));
 parts.sort((a, b) => b.p[1] - a.p[1]);
 parts01.sort((a, b) => b.p[1] - a.p[1]);
+var frontFits01 = {
+  "\uBA38\uB9AC\uC758 \uAD00": { p: [0, 2.2], r: [0.18, 0.065] },
+  "\uC5BC\uAD74\uACFC \uD45C\uC815": { p: [0, 1.95], r: [0.15, 0.16] },
+  "\uBEA8\uC5D0 \uB304 \uC190\uAC00\uB77D": { p: [-0.1, 1.8], r: [0.065, 0.085] },
+  "\uC0C1\uCCB4": { p: [0, 1.45], r: [0.21, 0.2] },
+  "\uC62C\uB9B0 \uB2E4\uB9AC": { p: [-0.12, 1.04], r: [0.35, 0.115] },
+  "\uC637\uC8FC\uB984": { p: [-0.06, 0.6], r: [0.27, 0.28] },
+  "\uC5F0\uAF43 \uBC1C\uBC1B\uCE68": { p: [0.34, 0.13], r: [0.14, 0.075] }
+};
+var frontFits02 = {
+  "\uBA38\uB9AC\uC758 \uAD00": { p: [-0.045, 2.15], r: [0.18, 0.145] },
+  "\uC5BC\uAD74\uACFC \uD45C\uC815": { p: [-0.015, 1.91], r: [0.135, 0.15] },
+  "\uBEA8\uC5D0 \uB304 \uC190\uAC00\uB77D": { p: [-0.15, 1.73], r: [0.065, 0.1] },
+  "\uC0C1\uCCB4": { p: [0, 1.4], r: [0.19, 0.22] },
+  "\uC62C\uB9B0 \uB2E4\uB9AC": { p: [-0.12, 1.04], r: [0.34, 0.12] },
+  "\uC637\uC8FC\uB984": { p: [-0.06, 0.58], r: [0.27, 0.28] },
+  "\uC5F0\uAF43 \uBC1C\uBC1B\uCE68": { p: [0.24, 0.13], r: [0.17, 0.085] }
+};
+for (const p of parts01) Object.assign(p, frontFits01[p.name]);
+for (const p of parts) Object.assign(p, frontFits02[p.name]);
+Object.assign(back01[0], { p: [0, 2.23], r: [0.18, 0.065] });
+Object.assign(back01[1], { p: [0, 2.05], r: [0.15, 0.13] });
 
 // node_modules/three/examples/jsm/controls/OrbitControls.js
 var _changeEvent = { type: "change" };
@@ -34258,9 +34280,18 @@ function updateParts() {
     b.hidden = !visible;
     connector.hidden = !visible || !mobile;
     if (!visible) return;
-    const edge = point.clone().add(new Vector3(parts2[i].r[0], parts2[i].r[1], 0)).project(camera);
-    const x = (q.x + 1) / 2 * rect.width, y = (-q.y + 1) / 2 * rect.height;
-    const w = Math.max(32, Math.abs(edge.x - q.x) * rect.width), h = Math.max(32, Math.abs(edge.y - q.y) * rect.height);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let step = 0; step < 32; step++) {
+      const angle = step / 32 * Math.PI * 2;
+      const edge = point.clone().add(new Vector3(Math.cos(angle) * parts2[i].r[0], Math.sin(angle) * parts2[i].r[1], 0)).project(camera);
+      const px = (edge.x + 1) / 2 * rect.width, py = (1 - edge.y) / 2 * rect.height;
+      minX = Math.min(minX, px);
+      maxX = Math.max(maxX, px);
+      minY = Math.min(minY, py);
+      maxY = Math.max(maxY, py);
+    }
+    const x = (minX + maxX) / 2, y = (minY + maxY) / 2;
+    const w = Math.max(20, maxX - minX), h = Math.max(20, maxY - minY);
     b.style.left = x + "px";
     b.style.top = y + "px";
     b.style.width = w + "px";

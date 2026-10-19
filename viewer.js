@@ -1,3 +1,58 @@
+// tactile-sound.js?v=bell-2
+function createTactileSound({ AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext, now = () => performance.now() } = {}) {
+  let context = null, lastPlayed = -Infinity;
+  const voices = /* @__PURE__ */ new Set();
+  function unlock() {
+    try {
+      if (!AudioContextClass) return;
+      context ??= new AudioContextClass();
+      if (context.state === "suspended") context.resume().catch(() => {
+      });
+    } catch {
+    }
+  }
+  function play() {
+    if (!context || context.state !== "running" || now() - lastPlayed < 1e3) return false;
+    lastPlayed = now();
+    const start = context.currentTime;
+    for (const [frequency, volume, decay] of [[880, 0.065, 1.3], [1762, 0.018, 0.9], [2394, 9e-3, 0.55]]) {
+      const oscillator = context.createOscillator(), gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(volume, start + 8e-3);
+      gain.gain.exponentialRampToValueAtTime(1e-4, start + decay);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      const voice = { oscillator, gain };
+      voices.add(voice);
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+        voices.delete(voice);
+      };
+      oscillator.start(start);
+      oscillator.stop(start + decay + 0.015);
+    }
+    return true;
+  }
+  function stop() {
+    for (const { oscillator, gain } of voices) {
+      gain.gain.cancelScheduledValues(context.currentTime);
+      gain.gain.setValueAtTime(0, context.currentTime);
+      try {
+        oscillator.stop();
+      } catch {
+      }
+    }
+  }
+  function reset() {
+    stop();
+    lastPlayed = -Infinity;
+  }
+  return { unlock, play, stop, reset };
+}
+
 // node_modules/three/build/three.core.js
 var REVISION = "180";
 var MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
@@ -28774,13 +28829,14 @@ var WebGLRenderer = class {
   }
 };
 
-// tactile.js?v=spoken-guide-4
+// tactile.js?v=bell-2
 function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, restore, renderScene, speak }) {
   const entry = document.querySelector("#feel-artifact"), exit = document.querySelector("#feel-exit");
   const status = document.querySelector("#feel-status"), support = document.querySelector("#feel-support");
   const canvas = document.querySelector("#feel-canvas"), ctx = canvas.getContext("2d");
   let active = false, mask = null, width = 0, height = 0, pointer = null, inside = false, timer = null, generation = 0;
   const loading2 = document.querySelector("#feel-loading");
+  const entrySound = createTactileSound();
   const vibrate = (pattern) => {
     try {
       return navigator.vibrate?.(pattern) ?? false;
@@ -28811,6 +28867,7 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
   }
   function end() {
     if (!active) return;
+    entrySound.reset();
     generation++;
     if ("speechSynthesis" in window) speechSynthesis.cancel();
     stop();
@@ -28835,12 +28892,15 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
     status.textContent = hit ? "\uC791\uD488 \uC548 \xB7 \uC9C4\uB3D9 \uC601\uC5ED" : "\uC791\uD488 \uBC16";
     if (hit) {
       canvas.classList.add("touch-inside");
+      entrySound.play();
       pulse();
     }
   }
   entry.onclick = async () => {
     const root2 = getRoot();
     if (!root2 || active) return;
+    entrySound.unlock();
+    entrySound.reset();
     freeze();
     active = true;
     const token2 = ++generation;
@@ -28898,7 +28958,7 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
       support.textContent = typeof navigator.vibrate === "function" ? "" : "\uC774 \uBE0C\uB77C\uC6B0\uC800\uB294 \uC9C4\uB3D9\uC744 \uC9C0\uC6D0\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4 \xB7 \uC724\uACFD \uD0D0\uC0C9\uB9CC \uAC00\uB2A5\uD569\uB2C8\uB2E4";
       canvas.tabIndex = -1;
       canvas.focus({ preventScroll: true });
-      speak("\uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uD654\uBA74\uC758 \uC791\uD488\uC5D0 \uC190\uAC00\uB77D\uC744 \uB300\uACE0, \uB5BC\uC9C0 \uC54A\uC740 \uCC44 \uCC9C\uCC9C\uD788 \uC6C0\uC9C1\uC5EC \uBCF4\uC138\uC694. \uC791\uD488 \uC548\uC5D0\uC11C\uB294 \uC9C4\uB3D9\uC774 \uB290\uAEF4\uC9C0\uACE0, \uC724\uACFD \uBC16\uC73C\uB85C \uBC97\uC5B4\uB098\uAC70\uB098 \uC190\uC744 \uB5BC\uBA74 \uBA48\uCDA5\uB2C8\uB2E4. \uD0D0\uC0C9\uC744 \uB9C8\uCE58\uB824\uBA74 \uC544\uB798\uC758 \uD0D0\uC0C9 \uC885\uB8CC \uBC84\uD2BC\uC744 \uD55C \uBC88 \uB20C\uB7EC \uC548\uB0B4\uB97C \uB4E3\uACE0, \uB2E4\uC2DC \uD55C \uBC88 \uB20C\uB7EC \uC8FC\uC138\uC694.", { interrupt: false });
+      speak("\uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uD654\uBA74\uC758 \uC791\uD488\uC5D0 \uC190\uAC00\uB77D\uC744 \uB300\uACE0, \uB5BC\uC9C0 \uC54A\uC740 \uCC44 \uCC9C\uCC9C\uD788 \uC6C0\uC9C1\uC5EC \uBCF4\uC138\uC694. \uC791\uD488\uC5D0 \uB2FF\uB294 \uC21C\uAC04 \uC9E7\uC740 \uC18C\uB9AC\uAC00 \uB098\uACE0, \uC791\uD488 \uC548\uC5D0\uC11C\uB294 \uC9C4\uB3D9\uC774 \uB290\uAEF4\uC9D1\uB2C8\uB2E4. \uC724\uACFD \uBC16\uC73C\uB85C \uBC97\uC5B4\uB098\uAC70\uB098 \uC190\uC744 \uB5BC\uBA74 \uBA48\uCDA5\uB2C8\uB2E4. \uD0D0\uC0C9\uC744 \uB9C8\uCE58\uB824\uBA74 \uC544\uB798\uC758 \uD0D0\uC0C9 \uC885\uB8CC \uBC84\uD2BC\uC744 \uD55C \uBC88 \uB20C\uB7EC \uC548\uB0B4\uB97C \uB4E3\uACE0, \uB2E4\uC2DC \uD55C \uBC88 \uB20C\uB7EC \uC8FC\uC138\uC694.", { interrupt: false });
     } catch (error) {
       end();
       console.error(error);
@@ -28908,6 +28968,7 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
   canvas.addEventListener("pointerdown", (e) => {
     if (!active || !mask || pointer !== null) return;
     e.preventDefault();
+    entrySound.unlock();
     pointer = e.pointerId;
     canvas.setPointerCapture(pointer);
     contact(e);
@@ -28933,11 +28994,15 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
   });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
+      entrySound.stop();
       stop();
       pointer = null;
     }
   });
-  addEventListener("pagehide", stop);
+  addEventListener("pagehide", () => {
+    entrySound.stop();
+    stop();
+  });
   return { isActive: () => active };
 }
 

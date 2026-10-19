@@ -33960,7 +33960,7 @@ async function load(i) {
     Object.assign(data, data.optimized);
   }
   $("#status").hidden = false;
-  $("#status").textContent = "\uC6D0\uBCF8 \uBA54\uC2DC\uC640 \uD45C\uBA74\uC744 \uBD88\uB7EC\uC624\uB294 \uC911\u2026";
+  $("#status").textContent = "\uC7A0\uC2DC, \uCC9C\uB144\uC758 \uC0AC\uC720\uB97C \uB9C8\uC8FC\uD560 \uC900\uBE44\uB97C \uD569\uB2C8\uB2E4\u2026";
   document.querySelectorAll("#collection button").forEach((b, j) => b.classList.toggle("active", i === j));
   try {
     const [obj, map, normal] = await Promise.all([data.type === "glb" ? new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(data.src).then((g) => g.scene) : data.type === "obj" ? new OBJLoader().loadAsync(data.src) : new PLYLoader().loadAsync(data.src).then((g) => {

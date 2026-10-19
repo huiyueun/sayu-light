@@ -33876,17 +33876,45 @@ var root = null;
 var token = 0;
 var current = 0;
 var transition = null;
+var tactile = null;
+var renderFrame = 0;
+var lastRenderTime = 0;
+var hiddenAt = 0;
+var mobileRendering = matchMedia("(pointer:coarse), (max-width:700px)");
+function requestRender() {
+  if (!renderFrame && !document.hidden && !tactile?.isActive()) renderFrame = requestAnimationFrame(drawFrame);
+}
+function stopRendering() {
+  cancelAnimationFrame(renderFrame);
+  renderFrame = 0;
+  lastRenderTime = 0;
+}
+controls.addEventListener("change", requestRender);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    hiddenAt = performance.now();
+    stopRendering();
+  } else {
+    if (transition && hiddenAt) transition.start += performance.now() - hiddenAt;
+    hiddenAt = 0;
+    requestRender();
+  }
+});
+addEventListener("pagehide", stopRendering);
+addEventListener("pageshow", requestRender);
 var texLoader = new TextureLoader();
 function resize() {
   const { width, height } = $("#stage").getBoundingClientRect();
   renderer.setSize(width, height);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+  requestRender();
 }
 addEventListener("resize", resize);
 new ResizeObserver(resize).observe($("#stage"));
 resize();
 function view(type, instant = false) {
+  requestRender();
   stopAutoRotation();
   const scale = matchMedia("(max-width: 700px) and (orientation: portrait)").matches ? 0.85 : 1;
   const target = new Vector3(0, type === "face" ? 1.98 : type === "detail" ? 0.65 : 1.05, 0);
@@ -34106,14 +34134,21 @@ document.querySelectorAll("[data-move]").forEach((button) => button.onclick = ()
 document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => view(b.dataset.view));
 $("#reset").onclick = () => view("front");
 $("#rotate").onclick = () => {
+  requestRender();
   controls.autoRotate = !controls.autoRotate;
   $("#rotate").classList.toggle("active", controls.autoRotate);
   $("#rotate").setAttribute("aria-pressed", controls.autoRotate);
 };
 $("#fullscreen").onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-var tactile = null;
-renderer.setAnimationLoop(() => {
-  if (tactile?.isActive()) return;
+function drawFrame(now) {
+  renderFrame = 0;
+  if (document.hidden || tactile?.isActive()) return;
+  if (mobileRendering.matches && lastRenderTime && now - lastRenderTime < 1e3 / 30 - 0.5) {
+    requestRender();
+    return;
+  }
+  const delta = lastRenderTime ? Math.min((now - lastRenderTime) / 1e3, 0.1) : 1 / 60;
+  lastRenderTime = now;
   if (transition) {
     const t = Math.min(1, (performance.now() - transition.start) / (transition.duration || 850)), s = t * t * (3 - 2 * t);
     if (transition.orbitFrom) {
@@ -34127,12 +34162,14 @@ renderer.setAnimationLoop(() => {
       done?.();
     }
   }
-  controls.update();
+  const changed = controls.update(delta);
   syncRotation();
   syncZoom();
   updateParts();
   renderer.render(scene, camera);
-});
+  if (transition || controls.autoRotate || changed) requestRender();
+  else if (!renderFrame) lastRenderTime = 0;
+}
 load(0);
 $("#toggle-controls").onclick = () => {
   const expanded = $(".panel").classList.toggle("expanded");
@@ -34300,6 +34337,7 @@ addEventListener("pagehide", () => {
   if ("speechSynthesis" in window) speechSynthesis.cancel();
 });
 function focusPart(i) {
+  requestRender();
   const point = partButtons[i].point.clone();
   const radius = parts2[i].r;
   const distance = Math.max(0.8, Math.max(radius[1] * 2.8, radius[0] * 2.8 / camera.aspect) / Math.tan(MathUtils.degToRad(camera.fov / 2)));
@@ -34402,6 +34440,7 @@ function fitTactileView() {
   renderer.render(scene, camera);
 }
 tactile = setupTactile({ renderer, camera, speak: sayControl, renderScene: () => renderer.render(scene, camera), getRoot: () => root, freeze: () => {
+  stopRendering();
   transition = null;
   stopAutoRotation();
   fitTactileView();
@@ -34410,6 +34449,7 @@ tactile = setupTactile({ renderer, camera, speak: sayControl, renderScene: () =>
   if ("speechSynthesis" in window) speechSynthesis.cancel();
 }, restore: () => {
   controls.enabled = true;
+  requestRender();
 } });
 /*! Bundled license information:
 

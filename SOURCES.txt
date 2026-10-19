@@ -1,0 +1,10 @@
+3D 데이터 제작·제공: 국립중앙박물관
+이용조건: 공공누리 제1유형(출처표시)
+
+01 금동 반가사유상 · 덕수3312
+https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=1256&schM=view
+02 금동 반가사유상 · 본관2789
+https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=4358&schM=view
+
+가공: 웹 감상을 위한 메시 경량화·Meshopt 압축·GLB 변환 및 색상/노멀 텍스처 WebP 변환. 조명과 화면 구성 및 촉각 탐색은 본 과제에서 구현했습니다.
+박물관 공식 서비스나 공식 도슨트가 아닙니다.

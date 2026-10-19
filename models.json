@@ -1,0 +1,28 @@
+[
+  {
+    "id": "duk003312",
+    "name": "금동 반가사유상",
+    "subtitle": "삼산관 · 덕수3312",
+    "src": "duk003312-model.glb",
+    "type": "glb",
+    "texture": "duk003312-texture.webp",
+    "normal": "duk003312-normal.webp",
+    "source": "https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=1256&schM=view",
+    "zip": "https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=1256&schM=view",
+    "number": "01",
+    "sizeLabel": "10.32 MB · 8K 표면"
+  },
+  {
+    "id": "bon002789",
+    "name": "반가사유상",
+    "subtitle": "화려한 보관 · 본관2789",
+    "src": "bon002789-model.glb",
+    "type": "glb",
+    "texture": "bon002789-texture.webp",
+    "normal": "bon002789-normal.webp",
+    "source": "https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=4358&schM=view",
+    "zip": "https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=4358&schM=view",
+    "number": "02",
+    "sizeLabel": "13.48 MB · 8K 표면"
+  }
+]

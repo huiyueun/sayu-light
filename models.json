@@ -24,5 +24,19 @@
     "zip": "https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=4358&schM=view",
     "number": "02",
     "sizeLabel": "13.48 MB · 8K 표면"
+  },
+  {
+    "id": "duk002457",
+    "name": "청동 금강령",
+    "subtitle": "청동 금강령 · 덕수2457",
+    "src": "duk002457-model.glb",
+    "type": "glb",
+    "texture": "duk002457-texture.webp",
+    "normal": "duk002457-normal.webp",
+    "source": "https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=1168&schM=view",
+    "zip": "https://www.museum.go.kr/MUSEUM/contents/M0505000000.do?relicId=1168&schM=view",
+    "number": "03",
+    "sizeLabel": "모바일 최적화 · 4K 표면",
+    "rotationX": 0
   }
 ]

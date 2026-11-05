@@ -28924,11 +28924,9 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, getLandma
     clearSpeech();
     entrySound.stop();
     entrySound.cue(1, true);
-    const message = explain ? h.name + ". " + h.text : h.name + ". \uC190\uC744 \uB5BC\uACE0 \uAC19\uC740 \uC9C0\uC810\uC744 \uB2E4\uC2DC \uC9DA\uC73C\uBA74 \uC124\uBA85\uD569\uB2C8\uB2E4.";
+    const message = explain ? h.text : h.name + ". \uC190\uC744 \uB5C0 \uB4A4 \uAC19\uC740 \uC9C0\uC810\uC744 \uB2E4\uC2DC \uD130\uCE58\uD558\uBA74 \uC0C1\uC138 \uD574\uC124\uC774 \uC7AC\uC0DD\uB429\uB2C8\uB2E4.";
     status.textContent = message;
-    speechTimer = setTimeout(() => {
-      if (active && !document.hidden) speak(message);
-    }, 280);
+    if (active && !document.hidden) speak(message);
   }
   function explore(x, y) {
     lastContact = { x, y };
@@ -28957,7 +28955,7 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, getLandma
         if (nearest) proximityCue();
       } else if (nearest && !cueTimer) proximityCue();
       if (!nearest) clearCue();
-      status.textContent = nearest ? "\uC124\uBA85 \uC9C0\uC810 \uADFC\uCC98 \xB7 \uC18C\uB9AC\uB97C \uB530\uB77C \uCC9C\uCC9C\uD788 \uC6C0\uC9C1\uC5EC \uBCF4\uC138\uC694" : inside ? "\uC791\uD488 \uC548 \xB7 \uC124\uBA85 \uC9C0\uC810\uC744 \uCC3E\uC544\uBCF4\uC138\uC694" : "\uC791\uD488 \uBC16";
+      status.textContent = nearest ? "\uD574\uC124 \uC9C0\uC810\uC5D0 \uC811\uADFC \uC911 \xB7 \uAC70\uB9AC \uC548\uB0B4\uC74C\uC744 \uB530\uB77C \uD0D0\uC0C9\uD558\uC138\uC694" : inside ? "\uC791\uD488 \uB0B4\uBD80 \xB7 \uD574\uC124 \uC9C0\uC810\uC744 \uD0D0\uC0C9\uD558\uC138\uC694" : "\uC791\uD488 \uBC16";
     }
     draw();
   }
@@ -29096,11 +29094,11 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, getLandma
       draw();
       loading2.hidden = true;
       document.body.classList.add("feeling");
-      status.textContent = `\uD0D0\uC0C9 \uC900\uBE44 \uC644\uB8CC \xB7 \uD604\uC7AC \uC2DC\uC810\uC758 \uC124\uBA85 \uC9C0\uC810 ${hotspots.length}\uAC1C`;
+      status.textContent = `\uD0D0\uC0C9 \uC900\uBE44 \uC644\uB8CC \xB7 \uD604\uC7AC \uC2DC\uC810\uC758 \uD574\uC124 \uC9C0\uC810 ${hotspots.length}\uAC1C`;
       support.textContent = typeof navigator.vibrate === "function" ? "" : "\uC774 \uBE0C\uB77C\uC6B0\uC800\uB294 \uC9C4\uB3D9\uC744 \uC9C0\uC6D0\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4 \xB7 \uC724\uACFD \uD0D0\uC0C9\uB9CC \uAC00\uB2A5\uD569\uB2C8\uB2E4";
       canvas.tabIndex = -1;
       canvas.focus({ preventScroll: true });
-      speak("\uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uD654\uBA74\uC758 \uC791\uD488\uC5D0 \uC190\uAC00\uB77D\uC744 \uB300\uACE0, \uB5BC\uC9C0 \uC54A\uC740 \uCC44 \uCC9C\uCC9C\uD788 \uC6C0\uC9C1\uC5EC \uBCF4\uC138\uC694. \uC791\uD488 \uC548\uC5D0\uC11C\uB294 \uC9C4\uB3D9\uC774 \uB290\uAEF4\uC9D1\uB2C8\uB2E4. \uC124\uBA85 \uC9C0\uC810\uC5D0 \uAC00\uAE4C\uC6CC\uC9C8\uC218\uB85D \uB760\uC6A9 \uC18C\uB9AC\uAC00 \uBE68\uB77C\uC9D1\uB2C8\uB2E4. \uB3C4\uCC29\uD558\uBA74 \uC2E0\uD638\uC74C\uACFC \uBA85\uCE6D\uC744 \uC54C\uB824\uB4DC\uB9BD\uB2C8\uB2E4. \uC190\uC744 \uB5BC\uACE0 \uAC19\uC740 \uC9C0\uC810\uC744 \uB2E4\uC2DC \uC9DA\uC73C\uBA74 \uC124\uBA85\uC744 \uB4E3\uC2B5\uB2C8\uB2E4. \uD0D0\uC0C9\uC744 \uB9C8\uCE58\uB824\uBA74 \uC544\uB798\uC758 \uD0D0\uC0C9 \uC885\uB8CC \uBC84\uD2BC\uC744 \uD55C \uBC88 \uB20C\uB7EC \uC548\uB0B4\uB97C \uB4E3\uACE0, \uB2E4\uC2DC \uD55C \uBC88 \uB20C\uB7EC \uC8FC\uC138\uC694.", { interrupt: false });
+      speak("\uD0D0\uC0C9 \uC900\uBE44\uAC00 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC190\uAC00\uB77D\uC744 \uD654\uBA74\uC5D0 \uB304 \uCC44 \uC791\uD488\uC758 \uC724\uACFD\uACFC \uB0B4\uBD80\uB97C \uCC9C\uCC9C\uD788 \uD0D0\uC0C9\uD558\uC138\uC694. \uC791\uD488 \uB0B4\uBD80\uC5D0\uC11C\uB294 \uC9C4\uB3D9\uC774 \uC774\uC5B4\uC9C0\uBA70, \uC724\uACFD \uBC16\uC73C\uB85C \uBC97\uC5B4\uB098\uBA74 \uBA48\uCDA5\uB2C8\uB2E4. \uD574\uC124 \uC9C0\uC810\uC5D0 \uAC00\uAE4C\uC6CC\uC9C8\uC218\uB85D \uAC70\uB9AC \uC548\uB0B4\uC74C\uC758 \uAC04\uACA9\uC774 \uC9E7\uC544\uC9D1\uB2C8\uB2E4. \uC9C0\uC810\uC5D0 \uB3C4\uB2EC\uD558\uBA74 \uC2E0\uD638\uC74C\uACFC \uD568\uAED8 \uBD80\uC704 \uBA85\uCE6D\uC744 \uC548\uB0B4\uD569\uB2C8\uB2E4. \uC190\uC744 \uB5C0 \uB4A4 \uAC19\uC740 \uC9C0\uC810\uC744 \uB2E4\uC2DC \uD130\uCE58\uD558\uBA74 \uC0C1\uC138 \uD574\uC124\uC774 \uC7AC\uC0DD\uB429\uB2C8\uB2E4. \uD0D0\uC0C9\uC744 \uB9C8\uCE58\uB824\uBA74 \uD0D0\uC0C9 \uC885\uB8CC \uBC84\uD2BC\uC744 \uD55C \uBC88 \uB20C\uB7EC \uC548\uB0B4\uB97C \uB4E3\uACE0, \uB2E4\uC2DC \uD55C \uBC88 \uB20C\uB7EC \uC2E4\uD589\uD558\uC138\uC694.", { interrupt: false });
     } catch (error) {
       end();
       console.error(error);
@@ -29229,6 +29227,16 @@ for (const p of parts01) Object.assign(p, frontFits01[p.name]);
 for (const p of parts) Object.assign(p, frontFits02[p.name]);
 Object.assign(back01[0], { p: [0, 2.23], r: [0.18, 0.065] });
 Object.assign(back01[1], { p: [0, 2.05], r: [0.15, 0.13] });
+var bellFront = [
+  { name: "\uC624\uACE0 \uC7A5\uC2DD", text: "\uB05D\uBD80\uBD84\uC740 \uB2E4\uC12F \uAC08\uB798\uC758 \uAC08\uACE0\uB9AC\uAC00 \uBAA8\uC774\uB294 \uD615\uD0DC\uC785\uB2C8\uB2E4. \uC774\uCC98\uB7FC \uB2E4\uC12F \uAC08\uB798\uC758 \uC7A5\uC2DD\uC744 \uAC16\uCD98 \uAE08\uAC15\uB839\uC744 \uC624\uACE0\uB839\uC774\uB77C\uACE0 \uD569\uB2C8\uB2E4.", p: [0, 2.08], r: [0.23, 0.16] },
+  { name: "\uB3D9\uBB3C \uBA38\uB9AC \uC7A5\uC2DD", text: "\uAC08\uACE0\uB9AC\uAC00 \uC2DC\uC791\uB418\uB294 \uBD80\uBD84\uC5D0 \uB3D9\uBB3C \uBA38\uB9AC \uBAA8\uC591\uC758 \uC7A5\uC2DD\uC774 \uC788\uC2B5\uB2C8\uB2E4. \uC774 \uC7A5\uC2DD\uC5D0\uC11C \uBC1C\uD1B1\uCC98\uB7FC \uBED7\uC740 \uAC08\uACE0\uB9AC\uAC00 \uC704\uB85C \uBAA8\uC785\uB2C8\uB2E4.", p: [0, 1.79], r: [0.22, 0.13] },
+  { name: "\uC190\uC7A1\uC774", text: "\uC704\uCABD \uC7A5\uC2DD\uACFC \uC544\uB798\uCABD \uBC29\uC6B8\uC744 \uC5F0\uACB0\uD558\uB294 \uBD80\uBD84\uC785\uB2C8\uB2E4. \uC190\uC7A1\uC774\uC758 \uAD75\uAE30 \uBCC0\uD654\uC640 \uBAB8\uCCB4\uB85C \uC774\uC5B4\uC9C0\uB294 \uD615\uD0DC\uB97C \uC0B4\uD3B4\uBCF4\uC138\uC694.", p: [0, 1.46], r: [0.13, 0.15] },
+  { name: "\uBC29\uC6B8\uC758 \uC5B4\uAE68", text: "\uC190\uC7A1\uC774 \uC544\uB798\uC5D0\uC11C \uBC29\uC6B8\uC758 \uBAB8\uCCB4\uAC00 \uB113\uC5B4\uC9C0\uB294 \uBD80\uBD84\uC785\uB2C8\uB2E4. \uC881\uC740 \uC190\uC7A1\uC774\uC5D0\uC11C \uB465\uADFC \uC5B4\uAE68\uB85C \uC774\uC5B4\uC9C0\uB294 \uC724\uACFD\uC744 \uB530\uB77C\uAC00 \uBCF4\uC138\uC694.", p: [0, 0.88], r: [0.25, 0.1] },
+  { name: "\uBAB8\uCCB4\uC758 \uBD80\uC870", text: "\uBC29\uC6B8\uC758 \uBAB8\uCCB4\uB294 \uC5EC\uC12F \uBA74\uC73C\uB85C \uB098\uB258\uC5B4 \uC788\uC2B5\uB2C8\uB2E4. \uAC01 \uBA74\uC5D0\uB294 \uC81C\uC11D\uCC9C\uACFC \uBC94\uCC9C, \uC0AC\uCC9C\uC655\uC758 \uBAA8\uC2B5\uC774 \uB3CB\uC744\uC0C8\uAE40\uC73C\uB85C \uD45C\uD604\uB418\uC5B4 \uC788\uC2B5\uB2C8\uB2E4.", p: [0, 0.6], r: [0.28, 0.16] },
+  { name: "\uBAB8\uCCB4 \uC544\uB798\uCABD", text: "\uBAB8\uCCB4\uC758 \uC544\uB798\uCABD\uC73C\uB85C \uB0B4\uB824\uAC00\uBA70 \uD3ED\uACFC \uD45C\uBA74\uC758 \uBCC0\uD654\uB97C \uC0B4\uD3B4\uBCF4\uC138\uC694. \uC7A5\uC2DD\uB41C \uBA74\uC774 \uC544\uB798 \uAC00\uC7A5\uC790\uB9AC\uAE4C\uC9C0 \uC774\uC5B4\uC9D1\uB2C8\uB2E4.", p: [0, 0.3], r: [0.28, 0.1] },
+  { name: "\uAF43\uC78E \uBAA8\uC591 \uAC00\uC7A5\uC790\uB9AC", text: "\uBC29\uC6B8\uC758 \uC544\uB798 \uAC00\uC7A5\uC790\uB9AC\uB294 \uC5EC\uC12F \uAC1C\uC758 \uAF43\uC78E\uCC98\uB7FC \uAD74\uACE1\uC9C4 \uD615\uD0DC\uC785\uB2C8\uB2E4. \uBC14\uAE65 \uC724\uACFD\uC758 \uC624\uBAA9\uD558\uACE0 \uBCFC\uB85D\uD55C \uBD80\uBD84\uC744 \uB530\uB77C\uAC00 \uBCF4\uC138\uC694.", p: [0, 0.1], r: [0.3, 0.06] }
+];
+var bellBack = bellFront.map((p) => ({ ...p, p: [...p.p], r: [...p.r] }));
 
 // node_modules/three/examples/jsm/controls/OrbitControls.js
 var _changeEvent = { type: "change" };
@@ -34059,6 +34067,10 @@ function createAreaLightMaterial(intensity) {
 
 // app.js
 var parts2 = parts01;
+function partSets() {
+  const id = models[current].id;
+  return id === "duk002457" ? { front: bellFront, back: bellBack } : id === "duk003312" ? { front: parts01, back: back01 } : { front: parts, back: back02 };
+}
 var $ = (s) => document.querySelector(s);
 var models = await fetch("./models.json").then((r) => r.json());
 models.forEach((m, i) => {
@@ -34224,7 +34236,7 @@ async function load(i) {
     if (normal) normal.anisotropy = renderer.capabilities.getMaxAnisotropy();
     const group = new Group();
     group.add(obj);
-    obj.rotation.x = -Math.PI / 2;
+    obj.rotation.x = data.rotationX ?? -Math.PI / 2;
     group.updateMatrixWorld(true);
     let box = new Box3().setFromObject(group), size = box.getSize(new Vector3());
     group.scale.setScalar(2.25 / size.y);
@@ -34256,7 +34268,7 @@ async function load(i) {
     root = group;
     current = i;
     partSide = "front";
-    parts2 = data.id === "duk003312" ? parts01 : parts;
+    parts2 = partSets().front;
     selectedPart = -1;
     partButtons.forEach(({ b, list, backList }) => {
       b.classList.remove("selected");
@@ -34277,6 +34289,10 @@ async function load(i) {
     $("#model-info").textContent = Math.round(triangles).toLocaleString() + " triangles \xB7 " + data.sizeLabel;
     $("#source").href = data.source;
     $("#download").href = data.zip;
+    document.querySelector(".intro h1").innerHTML = data.id === "duk002457" ? "\uCC9C\uB144\uC758 \uC6B8\uB9BC,<br>\uBE5B\uC73C\uB85C \uB9C8\uC8FC\uD558\uB2E4." : "\uCC9C\uB144\uC758 \uBBF8\uC18C,<br>\uBE5B\uC73C\uB85C \uB9C8\uC8FC\uD558\uB2E4.";
+    document.querySelector(".description").innerHTML = data.id === "duk002457" ? "\uCC9C\uCC9C\uD788 \uB3CC\uB824\uBCF4\uACE0, \uAC00\uAE4C\uC774 \uB2E4\uAC00\uAC00\uC138\uC694.<br>\uAC08\uACE0\uB9AC\uC758 \uACE1\uC120\uBD80\uD130 \uBC29\uC6B8\uC758 \uBD80\uC870\uAE4C\uC9C0." : "\uCC9C\uCC9C\uD788 \uB3CC\uB824\uBCF4\uACE0, \uAC00\uAE4C\uC774 \uB2E4\uAC00\uAC00\uC138\uC694.<br>\uC637\uC790\uB77D\uC758 \uAD74\uACE1\uBD80\uD130 \uC190\uB05D\uC758 \uACE0\uC694\uAE4C\uC9C0.";
+    document.querySelector("[data-view=face]").textContent = data.id === "duk002457" ? "\uC624\uACE0 \uD655\uB300" : "\uC5BC\uAD74 \uD655\uB300";
+    document.querySelector("[data-view=detail]").textContent = data.id === "duk002457" ? "\uBD80\uC870 \uD655\uB300" : "\uC8FC\uB984 \uD655\uB300";
     $("#status").hidden = true;
   } catch (e) {
     $("#status").textContent = "\uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB2E4\uB978 \uC720\uBB3C\uC744 \uC120\uD0DD\uD558\uAC70\uB098 \uC0C8\uB85C\uACE0\uCE68\uD574 \uC8FC\uC138\uC694.";
@@ -34463,9 +34479,9 @@ function setupParts() {
   partButtons.forEach(({ point, b, list, backList }, i) => {
     const part = parts2[i];
     b.setAttribute("aria-label", `${i + 1}. ${part.name}`);
-    const first = models[current].id === "duk003312";
-    list.setAttribute("aria-label", `\uC815\uBA74 ${i + 1}. ${(first ? parts01 : parts)[i].name}`);
-    backList.setAttribute("aria-label", `\uD6C4\uBA74 ${i + 1}. ${(first ? back01 : back02)[i].name}`);
+    const sets = partSets();
+    list.setAttribute("aria-label", `\uC815\uBA74 ${i + 1}. ${sets.front[i].name}`);
+    backList.setAttribute("aria-label", `\uD6C4\uBA74 ${i + 1}. ${sets.back[i].name}`);
     b.querySelector(".part-name").textContent = `${i + 1}. ${part.name}`;
     point.set(part.p[0], part.p[1], sign * 0.2);
     cast.set(new Vector3(part.p[0], part.p[1], sign * 4), new Vector3(0, 0, -sign));
@@ -34478,8 +34494,8 @@ function updatePartSide() {
   const side = direction < -0.25 ? "back" : direction > 0.25 ? "front" : partSide;
   if (side === partSide) return;
   partSide = side;
-  const first = models[current].id === "duk003312";
-  parts2 = side === "back" ? first ? back01 : back02 : first ? parts01 : parts;
+  const sets = partSets();
+  parts2 = sets[side];
   selectedPart = -1;
   clearPreview();
   if ("speechSynthesis" in window) speechSynthesis.cancel();
@@ -34549,8 +34565,8 @@ function selectSidePart(i, side) {
   view(side === "back" ? "back" : "front");
   transition.onComplete = () => {
     partSide = side;
-    const first = models[current].id === "duk003312";
-    parts2 = side === "back" ? first ? back01 : back02 : first ? parts01 : parts;
+    const sets = partSets();
+    parts2 = sets[side];
     setupParts();
     selectPart(i);
   };
@@ -34698,8 +34714,8 @@ function fitTactileView() {
   renderer.render(scene, camera);
 }
 tactile = setupTactile({ renderer, camera, speak: sayControl, renderScene: () => renderer.render(scene, camera), getRoot: () => root, getLandmarks: () => {
-  const first = models[current].id === "duk003312";
-  return [{ side: "front", sign: 1, items: first ? parts01 : parts }, { side: "back", sign: -1, items: first ? back01 : back02 }];
+  const sets = partSets();
+  return [{ side: "front", sign: 1, items: sets.front }, { side: "back", sign: -1, items: sets.back }];
 }, freeze: () => {
   stopRendering();
   transition = null;

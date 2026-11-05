@@ -48,9 +48,10 @@ export function setupTactile({renderer,camera,getRoot,getLandmarks=()=>[],freeze
  }
  function announce(h,explain){
   clearCue();clearSpeech();entrySound.stop();entrySound.cue(1,true);
-  const message=explain?h.name+'. '+h.text:h.name+'. 손을 떼고 같은 지점을 다시 짚으면 설명합니다.';
+  const message=explain?h.text:h.name+'. 손을 뗀 뒤 같은 지점을 다시 터치하면 상세 해설이 재생됩니다.';
   status.textContent=message;
-  speechTimer=setTimeout(()=>{if(active&&!document.hidden)speak(message);},280);
+  // Start TTS in the trusted pointer event; mobile browsers may reject delayed speech.
+  if(active&&!document.hidden)speak(message);
  }
  function explore(x,y){
   lastContact={x,y};let best=null,distance=Infinity;
@@ -67,7 +68,7 @@ export function setupTactile({renderer,camera,getRoot,getLandmarks=()=>[],freeze
    if(oldNearest!==nearest){clearCue();entrySound.stop();if(nearest)proximityCue();}
    else if(nearest&&!cueTimer)proximityCue();
    if(!nearest)clearCue();
-   status.textContent=nearest?'설명 지점 근처 · 소리를 따라 천천히 움직여 보세요':inside?'작품 안 · 설명 지점을 찾아보세요':'작품 밖';
+   status.textContent=nearest?'해설 지점에 접근 중 · 거리 안내음을 따라 탐색하세요':inside?'작품 내부 · 해설 지점을 탐색하세요':'작품 밖';
   }
   draw();
  }
@@ -122,10 +123,10 @@ export function setupTactile({renderer,camera,getRoot,getLandmarks=()=>[],freeze
    const i=(y*width+x)*4;output.data[i]=edge?245:hit?27:12;output.data[i+1]=edge?220:hit?25:12;output.data[i+2]=edge?164:hit?20:12;output.data[i+3]=edge?255:hit?80:255;
   }
   baseImage=output;hotspots=projectHotspots(root);selected=null;nearest=null;arrived=null;draw();loading.hidden=true;document.body.classList.add('feeling');
-  status.textContent=`탐색 준비 완료 · 현재 시점의 설명 지점 ${hotspots.length}개`;
+  status.textContent=`탐색 준비 완료 · 현재 시점의 해설 지점 ${hotspots.length}개`;
   support.textContent=typeof navigator.vibrate==='function'?'':'이 브라우저는 진동을 지원하지 않습니다 · 윤곽 탐색만 가능합니다';
   canvas.tabIndex=-1;canvas.focus({preventScroll:true});
-  speak('준비되었습니다. 화면의 작품에 손가락을 대고, 떼지 않은 채 천천히 움직여 보세요. 작품 안에서는 진동이 느껴집니다. 설명 지점에 가까워질수록 띠용 소리가 빨라집니다. 도착하면 신호음과 명칭을 알려드립니다. 손을 떼고 같은 지점을 다시 짚으면 설명을 듣습니다. 탐색을 마치려면 아래의 탐색 종료 버튼을 한 번 눌러 안내를 듣고, 다시 한 번 눌러 주세요.',{interrupt:false});
+  speak('탐색 준비가 완료되었습니다. 손가락을 화면에 댄 채 작품의 윤곽과 내부를 천천히 탐색하세요. 작품 내부에서는 진동이 이어지며, 윤곽 밖으로 벗어나면 멈춥니다. 해설 지점에 가까워질수록 거리 안내음의 간격이 짧아집니다. 지점에 도달하면 신호음과 함께 부위 명칭을 안내합니다. 손을 뗀 뒤 같은 지점을 다시 터치하면 상세 해설이 재생됩니다. 탐색을 마치려면 탐색 종료 버튼을 한 번 눌러 안내를 듣고, 다시 한 번 눌러 실행하세요.',{interrupt:false});
   }catch(error){
    end();console.error(error);
    entry.textContent='윤곽을 준비하지 못했습니다 · 다시 시도';

@@ -1,0 +1,14 @@
+{
+  "name": "sayu-light-source",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild app.js --bundle --format=esm --target=es2022 --outfile=../viewer.js"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

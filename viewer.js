@@ -50,7 +50,33 @@ function createTactileSound({ AudioContextClass = globalThis.AudioContext || glo
     stop();
     lastPlayed = -Infinity;
   }
-  return { unlock, play, stop, reset };
+  function cue(proximity = 0, arrival = false) {
+    if (!context || context.state !== "running") return false;
+    const start = context.currentTime;
+    for (let i = 0; i < 2; i++) {
+      const oscillator = context.createOscillator(), gain = context.createGain(), t = start + i * (arrival ? 0.12 : 0.085);
+      const base = arrival ? i ? 1320 : 990 : 460 + proximity * 330;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(base * (arrival ? 1 : 1.45), t);
+      oscillator.frequency.exponentialRampToValueAtTime(base, t + 0.1);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(arrival ? 0.07 : 0.045, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(1e-4, t + 0.19);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      const voice = { oscillator, gain };
+      voices.add(voice);
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+        voices.delete(voice);
+      };
+      oscillator.start(t);
+      oscillator.stop(t + 0.2);
+    }
+    return true;
+  }
+  return { unlock, play, stop, reset, cue };
 }
 
 // node_modules/three/build/three.core.js
@@ -28830,12 +28856,119 @@ var WebGLRenderer = class {
 };
 
 // tactile.js?v=bell-2
-function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, restore, renderScene, speak }) {
+function setupTactile({ renderer: renderer2, camera: camera2, getRoot, getLandmarks = () => [], freeze, restore, renderScene, speak }) {
   const entry = document.querySelector("#feel-artifact"), exit = document.querySelector("#feel-exit");
   const status = document.querySelector("#feel-status"), support = document.querySelector("#feel-support");
   const canvas = document.querySelector("#feel-canvas"), ctx = canvas.getContext("2d");
   let active = false, mask = null, width = 0, height = 0, pointer = null, inside = false, timer = null, generation = 0;
   const loading2 = document.querySelector("#feel-loading");
+  let hotspots = [], baseImage = null, nearest = null, arrived = null, selected = null, gesture = 0, namedGesture = -1, cueTimer = null, speechTimer = null, lastContact = null;
+  const ray = new Raycaster();
+  function clearCue() {
+    clearTimeout(cueTimer);
+    cueTimer = null;
+  }
+  function clearSpeech() {
+    clearTimeout(speechTimer);
+    speechTimer = null;
+  }
+  function draw() {
+    if (!baseImage) return;
+    ctx.putImageData(baseImage, 0, 0);
+    hotspots.forEach((h, i) => {
+      const current2 = h === nearest, found = h === arrived;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2);
+      ctx.fillStyle = found ? "#f5d894bb" : current2 ? "#cbb47766" : "#cbb47722";
+      ctx.fill();
+      ctx.strokeStyle = found ? "#fff1c6" : current2 ? "#f1d18b" : "#cdb57d";
+      ctx.lineWidth = current2 ? 2.5 : 1.5;
+      ctx.stroke();
+      ctx.fillStyle = "#fff1cf";
+      ctx.font = "600 12px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(i + 1), h.x, h.y);
+    });
+  }
+  function projectHotspots(root2) {
+    root2.updateMatrixWorld(true);
+    camera2.updateMatrixWorld(true);
+    const result = [];
+    for (const group of getLandmarks()) for (const [i, part] of group.items.entries()) {
+      ray.set(new Vector3(part.p[0], part.p[1], group.sign * 4), new Vector3(0, 0, -group.sign));
+      const surface2 = ray.intersectObject(root2, true)[0];
+      if (!surface2) continue;
+      const point = surface2.point, delta = point.clone().sub(camera2.position), distance = delta.length();
+      ray.set(camera2.position, delta.normalize());
+      const visible = ray.intersectObject(root2, true)[0];
+      if (!visible || distance - visible.distance > 0.035) continue;
+      const q = point.clone().project(camera2);
+      if (q.z <= -1 || q.z >= 1 || Math.abs(q.x) >= 1 || Math.abs(q.y) >= 1) continue;
+      const x = (q.x + 1) * width / 2, y = (1 - q.y) * height / 2;
+      if (!mask[(height - 1 - Math.floor(y)) * width + Math.floor(x)]) continue;
+      if (result.some((h) => Math.hypot(h.x - x, h.y - y) < 28)) continue;
+      result.push({ ...part, id: group.side + "-" + i, x, y, radius: 18 });
+    }
+    return result.sort((a, b) => a.y - b.y);
+  }
+  function proximityCue() {
+    clearCue();
+    if (!active || pointer === null || !inside || !nearest || arrived || document.hidden) return;
+    const d = Math.hypot(lastContact.x - nearest.x, lastContact.y - nearest.y), near = 1 - Math.min(1, Math.max(0, (d - nearest.radius) / 75));
+    if (!globalThis.speechSynthesis?.speaking) entrySound.cue(near);
+    cueTimer = setTimeout(proximityCue, 850 - near * 570);
+  }
+  function announce(h, explain) {
+    clearCue();
+    clearSpeech();
+    entrySound.stop();
+    entrySound.cue(1, true);
+    const message = explain ? h.name + ". " + h.text : h.name + ". \uC190\uC744 \uB5BC\uACE0 \uAC19\uC740 \uC9C0\uC810\uC744 \uB2E4\uC2DC \uC9DA\uC73C\uBA74 \uC124\uBA85\uD569\uB2C8\uB2E4.";
+    status.textContent = message;
+    speechTimer = setTimeout(() => {
+      if (active && !document.hidden) speak(message);
+    }, 280);
+  }
+  function explore(x, y) {
+    lastContact = { x, y };
+    let best = null, distance = Infinity;
+    if (inside) for (const h of hotspots) {
+      const d = Math.hypot(h.x - x, h.y - y);
+      if (d < distance) {
+        best = h;
+        distance = d;
+      }
+    }
+    const oldNearest = nearest;
+    nearest = distance < 93 ? best : null;
+    const hit = nearest && (distance <= nearest.radius || arrived === nearest && distance <= nearest.radius + 8) ? nearest : null;
+    if (hit && arrived !== hit) {
+      arrived = hit;
+      const explain = selected === hit.id && namedGesture !== gesture;
+      if (selected !== hit.id || namedGesture !== gesture) announce(hit, explain);
+      selected = hit.id;
+      namedGesture = gesture;
+    } else if (!hit) {
+      arrived = null;
+      if (oldNearest !== nearest) {
+        clearCue();
+        entrySound.stop();
+        if (nearest) proximityCue();
+      } else if (nearest && !cueTimer) proximityCue();
+      if (!nearest) clearCue();
+      status.textContent = nearest ? "\uC124\uBA85 \uC9C0\uC810 \uADFC\uCC98 \xB7 \uC18C\uB9AC\uB97C \uB530\uB77C \uCC9C\uCC9C\uD788 \uC6C0\uC9C1\uC5EC \uBCF4\uC138\uC694" : inside ? "\uC791\uD488 \uC548 \xB7 \uC124\uBA85 \uC9C0\uC810\uC744 \uCC3E\uC544\uBCF4\uC138\uC694" : "\uC791\uD488 \uBC16";
+    }
+    draw();
+  }
+  function release() {
+    clearCue();
+    if (!arrived) entrySound.stop();
+    nearest = null;
+    arrived = null;
+    lastContact = null;
+    draw();
+  }
   const entrySound = createTactileSound();
   const vibrate = (pattern) => {
     try {
@@ -28867,6 +29000,11 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
   }
   function end() {
     if (!active) return;
+    clearSpeech();
+    release();
+    selected = null;
+    hotspots = [];
+    baseImage = null;
     entrySound.reset();
     generation++;
     if ("speechSynthesis" in window) speechSynthesis.cancel();
@@ -28883,19 +29021,18 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor((e.clientX - rect.left) / rect.width * width), y = Math.floor((e.clientY - rect.top) / rect.height * height);
     const hit = x >= 0 && y >= 0 && x < width && y < height && mask[(height - 1 - y) * width + x] > 0;
-    if (hit === inside) {
-      if (!hit) status.textContent = "\uC791\uD488 \uBC16";
-      return;
+    if (hit !== inside) {
+      stop();
+      inside = hit;
+      if (hit) {
+        canvas.classList.add("touch-inside");
+        entrySound.play();
+        pulse();
+      }
     }
-    stop();
-    inside = hit;
-    status.textContent = hit ? "\uC791\uD488 \uC548 \xB7 \uC9C4\uB3D9 \uC601\uC5ED" : "\uC791\uD488 \uBC16";
-    if (hit) {
-      canvas.classList.add("touch-inside");
-      entrySound.play();
-      pulse();
-    }
+    explore(x, y);
   }
+  ;
   entry.onclick = async () => {
     const root2 = getRoot();
     if (!root2 || active) return;
@@ -28951,14 +29088,19 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
         output.data[i + 2] = edge ? 164 : hit ? 20 : 12;
         output.data[i + 3] = edge ? 255 : hit ? 80 : 255;
       }
-      ctx.putImageData(output, 0, 0);
+      baseImage = output;
+      hotspots = projectHotspots(root2);
+      selected = null;
+      nearest = null;
+      arrived = null;
+      draw();
       loading2.hidden = true;
       document.body.classList.add("feeling");
-      status.textContent = "\uD0D0\uC0C9 \uC900\uBE44 \uC644\uB8CC";
+      status.textContent = `\uD0D0\uC0C9 \uC900\uBE44 \uC644\uB8CC \xB7 \uD604\uC7AC \uC2DC\uC810\uC758 \uC124\uBA85 \uC9C0\uC810 ${hotspots.length}\uAC1C`;
       support.textContent = typeof navigator.vibrate === "function" ? "" : "\uC774 \uBE0C\uB77C\uC6B0\uC800\uB294 \uC9C4\uB3D9\uC744 \uC9C0\uC6D0\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4 \xB7 \uC724\uACFD \uD0D0\uC0C9\uB9CC \uAC00\uB2A5\uD569\uB2C8\uB2E4";
       canvas.tabIndex = -1;
       canvas.focus({ preventScroll: true });
-      speak("\uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uD654\uBA74\uC758 \uC791\uD488\uC5D0 \uC190\uAC00\uB77D\uC744 \uB300\uACE0, \uB5BC\uC9C0 \uC54A\uC740 \uCC44 \uCC9C\uCC9C\uD788 \uC6C0\uC9C1\uC5EC \uBCF4\uC138\uC694. \uC791\uD488\uC5D0 \uB2FF\uB294 \uC21C\uAC04 \uC9E7\uC740 \uC18C\uB9AC\uAC00 \uB098\uACE0, \uC791\uD488 \uC548\uC5D0\uC11C\uB294 \uC9C4\uB3D9\uC774 \uB290\uAEF4\uC9D1\uB2C8\uB2E4. \uC724\uACFD \uBC16\uC73C\uB85C \uBC97\uC5B4\uB098\uAC70\uB098 \uC190\uC744 \uB5BC\uBA74 \uBA48\uCDA5\uB2C8\uB2E4. \uD0D0\uC0C9\uC744 \uB9C8\uCE58\uB824\uBA74 \uC544\uB798\uC758 \uD0D0\uC0C9 \uC885\uB8CC \uBC84\uD2BC\uC744 \uD55C \uBC88 \uB20C\uB7EC \uC548\uB0B4\uB97C \uB4E3\uACE0, \uB2E4\uC2DC \uD55C \uBC88 \uB20C\uB7EC \uC8FC\uC138\uC694.", { interrupt: false });
+      speak("\uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uD654\uBA74\uC758 \uC791\uD488\uC5D0 \uC190\uAC00\uB77D\uC744 \uB300\uACE0, \uB5BC\uC9C0 \uC54A\uC740 \uCC44 \uCC9C\uCC9C\uD788 \uC6C0\uC9C1\uC5EC \uBCF4\uC138\uC694. \uC791\uD488 \uC548\uC5D0\uC11C\uB294 \uC9C4\uB3D9\uC774 \uB290\uAEF4\uC9D1\uB2C8\uB2E4. \uC124\uBA85 \uC9C0\uC810\uC5D0 \uAC00\uAE4C\uC6CC\uC9C8\uC218\uB85D \uB760\uC6A9 \uC18C\uB9AC\uAC00 \uBE68\uB77C\uC9D1\uB2C8\uB2E4. \uB3C4\uCC29\uD558\uBA74 \uC2E0\uD638\uC74C\uACFC \uBA85\uCE6D\uC744 \uC54C\uB824\uB4DC\uB9BD\uB2C8\uB2E4. \uC190\uC744 \uB5BC\uACE0 \uAC19\uC740 \uC9C0\uC810\uC744 \uB2E4\uC2DC \uC9DA\uC73C\uBA74 \uC124\uBA85\uC744 \uB4E3\uC2B5\uB2C8\uB2E4. \uD0D0\uC0C9\uC744 \uB9C8\uCE58\uB824\uBA74 \uC544\uB798\uC758 \uD0D0\uC0C9 \uC885\uB8CC \uBC84\uD2BC\uC744 \uD55C \uBC88 \uB20C\uB7EC \uC548\uB0B4\uB97C \uB4E3\uACE0, \uB2E4\uC2DC \uD55C \uBC88 \uB20C\uB7EC \uC8FC\uC138\uC694.", { interrupt: false });
     } catch (error) {
       end();
       console.error(error);
@@ -28969,7 +29111,12 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
     if (!active || !mask || pointer !== null) return;
     e.preventDefault();
     entrySound.unlock();
+    if (!selected) {
+      clearSpeech();
+      globalThis.speechSynthesis?.cancel();
+    }
     pointer = e.pointerId;
+    gesture++;
     canvas.setPointerCapture(pointer);
     contact(e);
   });
@@ -28983,7 +29130,14 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
     if (e.pointerId !== pointer) return;
     pointer = null;
     stop();
-    status.textContent = "\uC190\uAC00\uB77D\uC744 \uB5BC\uC5C8\uC2B5\uB2C8\uB2E4";
+    release();
+    if (type !== "pointerup") {
+      clearSpeech();
+      entrySound.stop();
+      globalThis.speechSynthesis?.cancel();
+      selected = null;
+    }
+    if (!selected) status.textContent = "\uC190\uAC00\uB77D\uC744 \uB5BC\uC5C8\uC2B5\uB2C8\uB2E4";
   });
   exit.onclick = end;
   addEventListener("keydown", (e) => {
@@ -28994,14 +29148,22 @@ function setupTactile({ renderer: renderer2, camera: camera2, getRoot, freeze, r
   });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
+      clearSpeech();
+      release();
       entrySound.stop();
+      globalThis.speechSynthesis?.cancel();
       stop();
       pointer = null;
+      selected = null;
     }
   });
   addEventListener("pagehide", () => {
+    clearSpeech();
+    release();
     entrySound.stop();
+    globalThis.speechSynthesis?.cancel();
     stop();
+    pointer = null;
   });
   return { isActive: () => active };
 }
@@ -34529,13 +34691,16 @@ function fitTactileView() {
     distance = Math.max(distance, depth + Math.abs(offset.dot(right)) * 1.12 / tanH, depth + Math.abs(offset.dot(up)) * 1.12 / tanV);
   }
   controls.target.copy(center);
-  camera.position.copy(center).addScaledVector(direction, distance);
+  camera.position.copy(center).addScaledVector(direction, distance * 1.28);
   controls.update();
   syncZoom();
   syncRotation();
   renderer.render(scene, camera);
 }
-tactile = setupTactile({ renderer, camera, speak: sayControl, renderScene: () => renderer.render(scene, camera), getRoot: () => root, freeze: () => {
+tactile = setupTactile({ renderer, camera, speak: sayControl, renderScene: () => renderer.render(scene, camera), getRoot: () => root, getLandmarks: () => {
+  const first = models[current].id === "duk003312";
+  return [{ side: "front", sign: 1, items: first ? parts01 : parts }, { side: "back", sign: -1, items: first ? back01 : back02 }];
+}, freeze: () => {
   stopRendering();
   transition = null;
   stopAutoRotation();

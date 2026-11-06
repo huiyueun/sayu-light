@@ -12,7 +12,7 @@ for(const m of models)for(const k of ['src','texture','normal']){
 const entry=(await fs.readFile(path.join(source,'app.js'),'utf8')).replace("await fetch('./models.json',{cache:'no-store'}).then(r=>r.json())","window.__embeddedModels");
 if(entry.includes("fetch('./models.json'"))throw new Error('Offline entry replacement failed');
 const result=await build({stdin:{contents:entry,resolveDir:source,sourcefile:'offline-entry.js'},bundle:true,write:false,format:'esm',target:'es2022',minify:true});
-const css=(await fs.readFile(path.join(root,'style.css'),'utf8')).replace(/@import[^;]+;/g,'');
+const css=(await fs.readFile(path.join(root,'style.css'),'utf8')).replace(/^@import[^\n]*\n/gm,'');
 let html=await fs.readFile(path.join(root,'index.html'),'utf8');
 html=html.replace(/<link rel="stylesheet" href="style\.css[^\"]*">/,()=>'<style>'+css+'</style>')
  .replace(/<script type="module" src="viewer\.js[^\"]*"><\/script>/,()=>'<script>window.__embeddedModels='+JSON.stringify(models)+';</script><script type="module">'+result.outputFiles[0].text.replaceAll('</script','<\\/script')+'</script>')

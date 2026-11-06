@@ -1,84 +1,3 @@
-// tactile-sound.js?v=bell-2
-function createTactileSound({ AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext, now = () => performance.now() } = {}) {
-  let context = null, lastPlayed = -Infinity;
-  const voices = /* @__PURE__ */ new Set();
-  function unlock() {
-    try {
-      if (!AudioContextClass) return;
-      context ??= new AudioContextClass();
-      if (context.state === "suspended") context.resume().catch(() => {
-      });
-    } catch {
-    }
-  }
-  function play() {
-    if (!context || context.state !== "running" || now() - lastPlayed < 1e3) return false;
-    lastPlayed = now();
-    const start = context.currentTime;
-    for (const [frequency, volume, decay] of [[880, 0.065, 1.3], [1762, 0.018, 0.9], [2394, 9e-3, 0.55]]) {
-      const oscillator = context.createOscillator(), gain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(frequency, start);
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(volume, start + 8e-3);
-      gain.gain.exponentialRampToValueAtTime(1e-4, start + decay);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      const voice = { oscillator, gain };
-      voices.add(voice);
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        gain.disconnect();
-        voices.delete(voice);
-      };
-      oscillator.start(start);
-      oscillator.stop(start + decay + 0.015);
-    }
-    return true;
-  }
-  function stop() {
-    for (const { oscillator, gain } of voices) {
-      gain.gain.cancelScheduledValues(context.currentTime);
-      gain.gain.setValueAtTime(0, context.currentTime);
-      try {
-        oscillator.stop();
-      } catch {
-      }
-    }
-  }
-  function reset() {
-    stop();
-    lastPlayed = -Infinity;
-  }
-  function cue(proximity = 0, arrival = false) {
-    if (!context || context.state !== "running") return false;
-    const start = context.currentTime;
-    for (let i = 0; i < 2; i++) {
-      const oscillator = context.createOscillator(), gain = context.createGain(), t = start + i * (arrival ? 0.12 : 0.085);
-      const base = arrival ? i ? 1320 : 990 : 460 + proximity * 330;
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(base * (arrival ? 1 : 1.45), t);
-      oscillator.frequency.exponentialRampToValueAtTime(base, t + 0.1);
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(arrival ? 0.07 : 0.045, t + 0.012);
-      gain.gain.exponentialRampToValueAtTime(1e-4, t + 0.19);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      const voice = { oscillator, gain };
-      voices.add(voice);
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        gain.disconnect();
-        voices.delete(voice);
-      };
-      oscillator.start(t);
-      oscillator.stop(t + 0.2);
-    }
-    return true;
-  }
-  return { unlock, play, stop, reset, cue };
-}
-
 // node_modules/three/build/three.core.js
 var REVISION = "180";
 var MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
@@ -28855,6 +28774,165 @@ var WebGLRenderer = class {
   }
 };
 
+// viewer-gestures.js
+function applyGesture(camera2, controls2, before, after, height) {
+  const offset = camera2.position.clone().sub(controls2.target);
+  if (after.length === 1) {
+    const scale = 2 * offset.length() * Math.tan(MathUtils.degToRad(camera2.fov / 2)) / height;
+    camera2.updateMatrix();
+    const delta = new Vector3().setFromMatrixColumn(camera2.matrix, 0).multiplyScalar(-(after[0].x - before[0].x) * scale);
+    delta.addScaledVector(new Vector3().setFromMatrixColumn(camera2.matrix, 1), (after[0].y - before[0].y) * scale);
+    camera2.position.add(delta);
+    controls2.target.add(delta);
+  } else {
+    const center = (p) => ({ x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 });
+    const gap = (p) => Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    const a = center(before), b = center(after), s = new Spherical().setFromVector3(offset);
+    if (gap(before) > 10 && gap(after) > 10) s.radius = MathUtils.clamp(s.radius * gap(before) / gap(after), controls2.minDistance, controls2.maxDistance);
+    s.theta -= (b.x - a.x) * 2 * Math.PI / height;
+    s.phi = MathUtils.clamp(s.phi - (b.y - a.y) * 2 * Math.PI / height, Math.max(0.01, controls2.minPolarAngle), Math.min(Math.PI - 0.01, controls2.maxPolarAngle));
+    camera2.position.copy(controls2.target).add(new Vector3().setFromSpherical(s));
+  }
+  controls2.update();
+}
+function setupViewerGestures({ stage, camera: camera2, controls: controls2, onStart, onChange }) {
+  const fingers = /* @__PURE__ */ new Map();
+  let moved = false, suppressClickUntil = 0;
+  const points = () => [...fingers.values()].slice(0, 2).map((p) => ({ x: p.x, y: p.y }));
+  stage.style.touchAction = "none";
+  stage.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "touch" || !controls2.enabled) return;
+    e.stopPropagation();
+    if (!fingers.size) {
+      moved = false;
+      onStart();
+      const damping = controls2.enableDamping;
+      controls2.enableDamping = false;
+      controls2.update();
+      controls2.enableDamping = damping;
+    }
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
+    if (fingers.size > 1) moved = true;
+  }, true);
+  stage.addEventListener("pointermove", (e) => {
+    const p = fingers.get(e.pointerId);
+    if (!p) return;
+    e.stopPropagation();
+    if (!controls2.enabled) {
+      fingers.clear();
+      return;
+    }
+    if (!moved && Math.hypot(e.clientX - p.startX, e.clientY - p.startY) < 6) return;
+    moved = true;
+    e.preventDefault();
+    const before = points();
+    p.x = e.clientX;
+    p.y = e.clientY;
+    if (fingers.size <= 2) applyGesture(camera2, controls2, before, points(), Math.max(1, stage.clientHeight));
+    onChange();
+  }, { capture: true, passive: false });
+  const end = (e) => {
+    if (!fingers.has(e.pointerId)) return;
+    e.stopPropagation();
+    if (moved) suppressClickUntil = performance.now() + 700;
+    fingers.delete(e.pointerId);
+    for (const p of fingers.values()) {
+      p.startX = p.x;
+      p.startY = p.y;
+    }
+  };
+  window.addEventListener("pointerup", end, true);
+  window.addEventListener("pointercancel", end, true);
+  window.addEventListener("blur", () => fingers.clear());
+  document.addEventListener("click", (e) => {
+    if (e.detail !== 0 && stage.contains(e.target) && performance.now() < suppressClickUntil) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+}
+
+// tactile-sound.js?v=bell-2
+function createTactileSound({ AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext, now = () => performance.now() } = {}) {
+  let context = null, lastPlayed = -Infinity;
+  const voices = /* @__PURE__ */ new Set();
+  function unlock() {
+    try {
+      if (!AudioContextClass) return;
+      context ??= new AudioContextClass();
+      if (context.state === "suspended") context.resume().catch(() => {
+      });
+    } catch {
+    }
+  }
+  function play() {
+    if (!context || context.state !== "running" || now() - lastPlayed < 1e3) return false;
+    lastPlayed = now();
+    const start = context.currentTime;
+    for (const [frequency, volume, decay] of [[880, 0.065, 1.3], [1762, 0.018, 0.9], [2394, 9e-3, 0.55]]) {
+      const oscillator = context.createOscillator(), gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(volume, start + 8e-3);
+      gain.gain.exponentialRampToValueAtTime(1e-4, start + decay);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      const voice = { oscillator, gain };
+      voices.add(voice);
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+        voices.delete(voice);
+      };
+      oscillator.start(start);
+      oscillator.stop(start + decay + 0.015);
+    }
+    return true;
+  }
+  function stop() {
+    for (const { oscillator, gain } of voices) {
+      gain.gain.cancelScheduledValues(context.currentTime);
+      gain.gain.setValueAtTime(0, context.currentTime);
+      try {
+        oscillator.stop();
+      } catch {
+      }
+    }
+  }
+  function reset() {
+    stop();
+    lastPlayed = -Infinity;
+  }
+  function cue(proximity = 0, arrival = false) {
+    if (!context || context.state !== "running") return false;
+    const start = context.currentTime;
+    for (let i = 0; i < 2; i++) {
+      const oscillator = context.createOscillator(), gain = context.createGain(), t = start + i * (arrival ? 0.12 : 0.085);
+      const base = arrival ? i ? 1320 : 990 : 460 + proximity * 330;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(base * (arrival ? 1 : 1.45), t);
+      oscillator.frequency.exponentialRampToValueAtTime(base, t + 0.1);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(arrival ? 0.07 : 0.045, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(1e-4, t + 0.19);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      const voice = { oscillator, gain };
+      voices.add(voice);
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+        voices.delete(voice);
+      };
+      oscillator.start(t);
+      oscillator.stop(t + 0.2);
+    }
+    return true;
+  }
+  return { unlock, play, stop, reset, cue };
+}
+
 // tactile.js?v=bell-2
 function setupTactile({ renderer: renderer2, camera: camera2, getRoot, getLandmarks = () => [], freeze, restore, renderScene, speak }) {
   const entry = document.querySelector("#feel-artifact"), exit = document.querySelector("#feel-exit");
@@ -34072,7 +34150,7 @@ function partSets() {
   return id === "duk002457" ? { front: bellFront, back: bellBack } : id === "duk003312" ? { front: parts01, back: back01 } : { front: parts, back: back02 };
 }
 var $ = (s) => document.querySelector(s);
-var models = await fetch("./models.json").then((r) => r.json());
+var models = await fetch("./models.json", { cache: "no-store" }).then((r) => r.json());
 models.forEach((m, i) => {
   const option = document.createElement("option");
   option.value = i;
@@ -34372,7 +34450,6 @@ function changeZoom(factor, announce = false) {
 }
 $("#zoom-out").onclick = (e) => changeZoom(1 / 1.1, e.detail > 0);
 $("#zoom-in").onclick = (e) => changeZoom(1.1, e.detail > 0);
-$("#zoom-original").onclick = (e) => changeZoom(camera.position.distanceTo(controls.target) / zoomBaseDistance(), e.detail > 0);
 var moveCount = 0;
 document.querySelectorAll("[data-move]").forEach((button) => button.onclick = () => {
   if (!root) return;
@@ -34728,6 +34805,22 @@ tactile = setupTactile({ renderer, camera, speak: sayControl, renderScene: () =>
   controls.enabled = true;
   requestRender();
 } });
+setupViewerGestures({ stage: $("#stage"), camera, controls, onStart: () => {
+  transition = null;
+  stopAutoRotation();
+}, onChange: () => {
+  clearPreview();
+  syncZoom();
+  syncRotation();
+  requestRender();
+} });
+$("#viewer-home").onclick = () => {
+  transition = null;
+  view("front", true);
+  syncZoom();
+  syncRotation();
+  sayControl("\uC791\uD488\uC744 \uC6D0\uC704\uCE58\uB85C \uBCF5\uC6D0\uD588\uC2B5\uB2C8\uB2E4.");
+};
 /*! Bundled license information:
 
 three/build/three.core.js:

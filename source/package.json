@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild app.js --bundle --format=esm --target=es2022 --outfile=../viewer.js"
+    "build": "esbuild app.js --bundle --format=esm --target=es2022 --outfile=../viewer.js",
+    "build:offline": "node build-offline.mjs"
   },
   "dependencies": {
     "three": "0.180.0"

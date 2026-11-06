@@ -1,3 +1,4 @@
+import {setupViewerGestures} from './viewer-gestures.js';
 import {setupTactile} from './tactile.js?v=bell-2';
 import {parts as parts02,parts01,back01,back02,bellFront,bellBack} from './parts.js?v=fitted-2';
 let parts=parts01;
@@ -9,7 +10,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {PLYLoader} from 'three/addons/loaders/PLYLoader.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
-const $=s=>document.querySelector(s), models=await fetch('./models.json').then(r=>r.json());
+const $=s=>document.querySelector(s), models=await fetch('./models.json',{cache:'no-store'}).then(r=>r.json());
 models.forEach((m,i)=>{const option=document.createElement('option');option.value=i;option.textContent=m.number+' · '+m.subtitle;$('#model-select').append(option)});
 $('#model-select').onchange=e=>load(+e.target.value);
 const originalMode=new URLSearchParams(location.search).get('quality')==='original';
@@ -64,7 +65,6 @@ function syncZoom(){const limits=zoomLimits();const value=Math.max(limits.min,Ma
 function changeZoom(factor,announce=false){if(!root)return;transition=null;stopAutoRotation();const limits=zoomLimits();const current=zoomBaseDistance()/camera.position.distanceTo(controls.target)*100;const value=Math.max(limits.min,Math.min(limits.max,Math.round(current*factor)));const offset=camera.position.clone().sub(controls.target).normalize();camera.position.copy(controls.target).addScaledVector(offset,zoomBaseDistance()*100/value);controls.update();showZoom(value);$('#zoom-announcement').textContent=`현재 배율 ${value}퍼센트`;if(announce)sayControl(`현재 배율 ${value}퍼센트`);}
 $('#zoom-out').onclick=e=>changeZoom(1/1.1,e.detail>0);
 $('#zoom-in').onclick=e=>changeZoom(1.1,e.detail>0);
-$('#zoom-original').onclick=e=>changeZoom(camera.position.distanceTo(controls.target)/zoomBaseDistance(),e.detail>0);
 let moveCount=0;
 document.querySelectorAll('[data-move]').forEach(button=>button.onclick=()=>{
  if(!root)return;
@@ -244,3 +244,6 @@ function fitTactileView(){
 }
 
 tactile=setupTactile({renderer,camera,speak:sayControl,renderScene:()=>renderer.render(scene,camera),getRoot:()=>root,getLandmarks:()=>{const sets=partSets();return [{side:'front',sign:1,items:sets.front},{side:'back',sign:-1,items:sets.back}];},freeze:()=>{stopRendering();transition=null;stopAutoRotation();fitTactileView();controls.enabled=false;clearTimeout(rotationVoiceTimer);if('speechSynthesis' in window)speechSynthesis.cancel();},restore:()=>{controls.enabled=true;requestRender();}});
+
+setupViewerGestures({stage:$('#stage'),camera,controls,onStart:()=>{transition=null;stopAutoRotation();},onChange:()=>{clearPreview();syncZoom();syncRotation();requestRender();}});
+$('#viewer-home').onclick=()=>{transition=null;view('front',true);syncZoom();syncRotation();sayControl('작품을 원위치로 복원했습니다.');};
